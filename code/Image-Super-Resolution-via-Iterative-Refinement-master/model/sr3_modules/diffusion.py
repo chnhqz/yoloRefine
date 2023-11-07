@@ -149,6 +149,7 @@ class GaussianDiffusion(nn.Module):
         return posterior_mean, posterior_log_variance_clipped
 
     def p_mean_variance(self, x, t, clip_denoised: bool, condition_x=None):
+
         batch_size = x.shape[0]
         noise_level = torch.FloatTensor(
             [self.sqrt_alphas_cumprod_prev[t+1]]).repeat(batch_size, 1).to(x.device)
@@ -170,6 +171,7 @@ class GaussianDiffusion(nn.Module):
     def p_sample(self, x, t, clip_denoised=True, condition_x=None):
         model_mean, model_log_variance = self.p_mean_variance(
             x=x, t=t, clip_denoised=clip_denoised, condition_x=condition_x)
+        # 得到均值和方差 先求出均值和方差，重参数化求出x_t。
         noise = torch.randn_like(x) if t > 0 else torch.zeros_like(x)
         return model_mean + noise * (0.5 * model_log_variance).exp()
 
@@ -186,10 +188,13 @@ class GaussianDiffusion(nn.Module):
                 if i % sample_inter == 0:
                     ret_img = torch.cat([ret_img, img], dim=0)
         else:
-            x = x_in
+            '''
+            只看if self.conditional is True的情况，x是sr img(条件)，img刚开始是高斯噪声，然后通过p_sample去迭代，也就是x_T->x_(T-1)->x_0的过程。
+            '''
+            x = x_in  # 输入的低质量图片
             shape = x.shape
-            img = torch.randn(shape, device=device)
-            ret_img = x
+            img = torch.randn(shape, device=device)  # 与输入图片大小一致的分布
+            ret_img = x  # 当前的低质量图片
             for i in tqdm(reversed(range(0, self.num_timesteps)), desc='sampling loop time step', total=self.num_timesteps):
                 img = self.p_sample(img, i, condition_x=x)
                 if i % sample_inter == 0:
@@ -207,6 +212,11 @@ class GaussianDiffusion(nn.Module):
 
     @torch.no_grad()
     def super_resolution(self, x_in, continous=False):
+        '''
+        :param x_in: 输入的低质量图片
+        :param continous:
+        :return:
+        '''
         return self.p_sample_loop(x_in, continous)
 
     def q_sample(self, x_start, continuous_sqrt_alpha_cumprod, noise=None):
@@ -219,31 +229,42 @@ class GaussianDiffusion(nn.Module):
         )
 
     def p_losses(self, x_in, noise=None):
-        x_start = x_in['HR']
+        '''
+        :param x_in:指的是主代码中的train_data
+        :param noise:
+        :return: 损失值
+        在ddpm里面可以看到，x_start是x0,是高分辨率图片，t是一个随机数，x_noisy也就是x_t是通过公式直接计算的。
+        如果是有条件训练的话，则只通过x_t通过unet预测当前噪声；否则通过super resolution和x_t预测噪声。然后，
+        通过预测的噪声和随机采样的高斯噪声做差得到损失。
+        '''
+        x_start = x_in['HR']  # HR对应的是高质量图片
         [b, c, h, w] = x_start.shape
-        t = np.random.randint(1, self.num_timesteps + 1)
+        t = np.random.randint(1, self.num_timesteps + 1)  # 生成一个范围为0-num_steps的整数
+
         continuous_sqrt_alpha_cumprod = torch.FloatTensor(
             np.random.uniform(
                 self.sqrt_alphas_cumprod_prev[t-1],
                 self.sqrt_alphas_cumprod_prev[t],
                 size=b
             )
-        ).to(x_start.device)
+        ).to(x_start.device)  # 这个是模型中的一个参数部分
         continuous_sqrt_alpha_cumprod = continuous_sqrt_alpha_cumprod.view(
             b, -1)
 
-        noise = default(noise, lambda: torch.randn_like(x_start))
+        noise = default(noise, lambda: torch.randn_like(x_start))  # 随机的一个噪声
         x_noisy = self.q_sample(
             x_start=x_start, continuous_sqrt_alpha_cumprod=continuous_sqrt_alpha_cumprod.view(-1, 1, 1, 1), noise=noise)
+        # 通过q_sample来预测一个噪声
 
         if not self.conditional:
             x_recon = self.denoise_fn(x_noisy, continuous_sqrt_alpha_cumprod)
         else:
             x_recon = self.denoise_fn(
                 torch.cat([x_in['SR'], x_noisy], dim=1), continuous_sqrt_alpha_cumprod)
+            # 如果是条件扩散模型，那么把x_in['SR']和x_noisy拼起来，放入denoise_fn
 
         loss = self.loss_func(noise, x_recon)
         return loss
 
     def forward(self, x, *args, **kwargs):
-        return self.p_losses(x, *args, **kwargs)
+        return self.p_losses(x, *args, **kwargs)  # 返回一个损失值

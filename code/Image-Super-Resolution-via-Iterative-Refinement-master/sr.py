@@ -63,7 +63,7 @@ if __name__ == "__main__":
     logger.info('Initial Dataset Finished')
 
     # model
-    diffusion = Model.create_model(opt)
+    diffusion = Model.create_model(opt)  # 定义模型
     logger.info('Initial Model Finished')
 
     # Train
@@ -77,16 +77,16 @@ if __name__ == "__main__":
 
     diffusion.set_new_noise_schedule(
         opt['model']['beta_schedule'][opt['phase']], schedule_phase=opt['phase'])
-    if opt['phase'] == 'train':
+    if opt['phase'] == 'train':  # 如果参数是train，就开始
         while current_step < n_iter:
             current_epoch += 1
-            for _, train_data in enumerate(train_loader):
+            for _, train_data in enumerate(train_loader):  # 导入每一个loader的train_data
                 current_step += 1
                 if current_step > n_iter:
                     break
-                diffusion.feed_data(train_data)
-                diffusion.optimize_parameters()
-                # log
+                diffusion.feed_data(train_data)  # 送入train_data
+                diffusion.optimize_parameters()  # 优化参数
+                # log 打印信息
                 if current_step % opt['train']['print_freq'] == 0:
                     logs = diffusion.get_current_log()
                     message = '<epoch:{:3d}, iter:{:8,d}> '.format(
@@ -97,9 +97,10 @@ if __name__ == "__main__":
                     logger.info(message)
 
                     if wandb_logger:
-                        wandb_logger.log_metrics(logs)
+                        wandb_logger.log_metrics(logs)  # 将日志数据 logs 记录到 wandb_logger 中
 
                 # validation
+                # 验证，反向过程
                 if current_step % opt['train']['val_freq'] == 0:
                     avg_psnr = 0.0
                     idx = 0
@@ -179,6 +180,7 @@ if __name__ == "__main__":
         idx = 0
         result_path = '{}'.format(opt['path']['results'])
         os.makedirs(result_path, exist_ok=True)
+        # 采样 即逆向去噪过程
         for _,  val_data in enumerate(val_loader):
             idx += 1
             diffusion.feed_data(val_data)

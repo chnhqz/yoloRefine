@@ -175,6 +175,18 @@ class GaussianDiffusion:
         :param x_start: the [N x C x ...] tensor of noiseless inputs.
         :param t: the number of diffusion steps (minus 1). Here, 0 means one step.
         :return: A tuple (mean, variance, log_variance), all of x_start's shape.
+        这是一个Python函数，它计算给定初始输入 x_start 和扩散步数 t 下，分布 q(x_t | x_0) 的均值、方差和对数方差。
+        这通常在扩散模型（可能是随机过程或随机微分方程）的上下文中使用，其中 q(x_t | x_0) 表示在时间 t 时刻给定初始条件 x_0 下，
+        随机变量 x_t 的条件概率分布。
+        具体地说，这个函数的三个返回值是：
+        mean（均值）：这是一个与 x_start 具有相同形状的张量，表示在时间 t 时刻给定初始条件 x_0 下，随机变量 x_t 的均值。
+        均值计算的方式是将 x_start 乘以一个关于扩散步数 t 的系列 sqrt_alphas_cumprod。
+
+        variance（方差）：这也是一个与 x_start 具有相同形状的张量，表示在时间 t 时刻给定初始条件 x_0 下，随机变量 x_t 的方差。
+        方差计算的方式是使用与扩散步数 t 相关的系列 1.0 - self.alphas_cumprod。
+
+        log_variance（对数方差）：这也是一个与 x_start 具有相同形状的张量，表示在时间 t 时刻给定初始条件 x_0 下，随机变量 x_t 的对数方差。
+        对数方差计算的方式是使用与扩散步数 t 相关的系列 self.log_one_minus_alphas_cumprod。
         """
         mean = (
             _extract_into_tensor(self.sqrt_alphas_cumprod, t, x_start.shape) * x_start
@@ -195,6 +207,17 @@ class GaussianDiffusion:
         :param t: the number of diffusion steps (minus 1). Here, 0 means one step.
         :param noise: if specified, the split-out normal noise.
         :return: A noisy version of x_start.
+        这是一个Python函数，用于模拟在给定初始数据 x_start 和扩散步数 t 下，从条件概率分布 q(x_t | x_0) 中采样数据，
+        从而生成一个具有噪声的版本的 x_start。
+
+        函数的操作步骤如下：
+            如果没有提供 noise 参数，就会生成一个与 x_start 具有相同形状的随机噪声（以正态分布随机数的形式）。这个随机噪声用于引入扰动。
+        确保随机噪声的形状与 x_start 相同。
+            计算并返回一个 "noisy" 版本的 x_start，这是通过以下两部分组成的：
+                第一部分是 x_start 乘以一个与扩散步数 t 相关的系列 sqrt_alphas_cumprod。
+                第二部分是随机噪声乘以一个与扩散步数 t 相关的系列 sqrt_one_minus_alphas_cumprod。
+        这个过程可以被视为在每个扩散步骤中，首先对原始数据 x_start 应用一个变换，然后再添加一些噪声以生成新的数据点。
+        这是在模拟扩散过程中，逐步引入噪声以改变数据分布的一种方式。这通常用于生成具有不同程度噪声的数据，以用于训练或测试各种机器学习或统计模型。
         """
         if noise is None:
             noise = th.randn_like(x_start)
@@ -901,6 +924,18 @@ def _extract_into_tensor(arr, timesteps, broadcast_shape):
     :param broadcast_shape: a larger shape of K dimensions with the batch
                             dimension equal to the length of timesteps.
     :return: a tensor of shape [batch_size, 1, ...] where the shape has K dims.
+    这是一个辅助函数 _extract_into_tensor，用于从一个一维 NumPy 数组 arr 中提取值，根据给定的索引 timesteps，
+    并将提取的值广播到指定形状 broadcast_shape 中。这通常在深度学习或数值计算中用于处理数据的不同形状和尺寸。
+
+    函数的主要步骤如下：
+        首先，将输入的一维 NumPy 数组 arr 转换为一个 PyTorch 张量（Tensor），并确保它与索引 timesteps 的设备（device）相匹配。
+    这是为了将数据从 NumPy 数组转换为 PyTorch 张量，并确保它在正确的计算设备上。
+        使用索引 timesteps 从 PyTorch 张量中提取特定的数值。timesteps 应该是一个表示在 arr 中要提取的元素的索引的张量。
+然后，通过在结果张量上执行广播操作，将提取的值广播到指定的形状 broadcast_shape 中。广播是一种在不同形状的张量之间进行元素级操作的机制，以使它们具有相同的形状，以便进行元素级运算。
+
+最终，函数返回一个 PyTorch 张量，其形状为 [batch_size, 1, ...]，其中 batch_size 等于 timesteps 的长度，而剩余的维度由 broadcast_shape 决定。
+
+这个函数的目的是将一维数据根据索引提取，并根据需要广播到指定的形状，以便在更复杂的计算中使用。
     """
     res = th.from_numpy(arr).to(device=timesteps.device)[timesteps].float()
     while len(res.shape) < len(broadcast_shape):

@@ -13,7 +13,7 @@ class DDPM(BaseModel):
     def __init__(self, opt):
         super(DDPM, self).__init__(opt)
         # define network and load pretrained models
-        self.netG = self.set_device(networks.define_G(opt))
+        self.netG = self.set_device(networks.define_G(opt))  # 定义netG网络，这个网络又使用了一个define_G来定义
         self.schedule_phase = None
 
         # set loss and load resume state
@@ -46,18 +46,27 @@ class DDPM(BaseModel):
         self.data = self.set_device(data)
 
     def optimize_parameters(self):
-        self.optG.zero_grad()
-        l_pix = self.netG(self.data)
+        '''
+        优化器
+        :return:
+        '''
+        self.optG.zero_grad()  # 首先将生成器的梯度清零
+        l_pix = self.netG(self.data)  # 这是生成一个损失
         # need to average in multi-gpu
         b, c, h, w = self.data['HR'].shape
-        l_pix = l_pix.sum()/int(b*c*h*w)
-        l_pix.backward()
-        self.optG.step()
+        l_pix = l_pix.sum()/int(b*c*h*w)  # 计算生成的图像的平均像素损失
+        l_pix.backward()  # 自动求导机制，用于计算梯度，调用 backward 方法保存梯度信息
+        self.optG.step()  # 更新生成器optG参数的步骤
 
         # set log
-        self.log_dict['l_pix'] = l_pix.item()
+        self.log_dict['l_pix'] = l_pix.item() # 这是损失
 
     def test(self, continous=False):
+        '''
+        把SR-低质量图片作为输入 放入到super_resolution内
+        :param continous:
+        :return:
+        '''
         self.netG.eval()
         with torch.no_grad():
             if isinstance(self.netG, nn.DataParallel):
