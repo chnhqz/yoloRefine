@@ -1,3 +1,78 @@
+评估
+
+为了比较不同的生成模型，我们使用FID（Frechet Inception Distance）、sFID、Precision、Recall和Inception Score这些指标。这些指标可以使用样本批次进行计算，我们将这些批次保存在.npy（numpy）文件中。
+
+下载批次
+
+我们提供了参考数据集、我们的扩散模型以及一些我们进行比较的基准模型的预先计算的样本批次。所有这些批次都以.npy格式存储。
+
+参考数据集批次包含整个数据集的预先计算统计信息，以及用于计算Precision和Recall的10,000张图像。所有其他批次都包含可用于计算统计信息和Precision/Recall的50,000张图像。
+
+以下是下载所有样本和参考批次的链接：
+
+LSUN
+
+LSUN卧室：参考批次
+ADM（丢弃）
+DDPM
+IDDPM
+StyleGAN
+LSUN猫：参考批次
+ADM（丢弃）
+StyleGAN2
+LSUN马：参考批次
+ADM（丢弃）
+ADM
+ImageNet
+
+ImageNet 64x64：参考批次
+ADM
+IDDPM
+BigGAN
+ImageNet 128x128：参考批次
+ADM
+ADM-G
+ADM-G, 25步
+BigGAN-deep（截断=1.0）
+ImageNet 256x256：参考批次
+ADM
+ADM-G
+ADM-G, 25步
+ADM-G + ADM-U
+ADM-U
+BigGAN-deep（截断=1.0）
+ImageNet 512x512：参考批次
+ADM
+ADM-G
+ADM-G, 25步
+ADM-G + ADM-U
+ADM-U
+BigGAN-deep（截断=1.0）
+运行评估
+
+首先，生成或下载一个样本批次，并下载给定数据集的相应参考批次。在这个示例中，我们将使用ImageNet 256x256，因此参考批次是VIRTUAL_imagenet256_labeled.npz，我们可以使用样本批次admnet_guided_upsampled_imagenet256.npz。
+
+接下来，运行evaluator.py脚本。该脚本的要求可以在requirements.txt中找到。将两个参数传递给脚本：参考批次和样本批次。脚本将下载用于评估的InceptionV3模型到当前工作目录（如果尚未存在）。该文件大约有100MB。
+
+脚本的输出将如下所示，其中第一个...是大量详细的TensorFlow日志：
+
+$ python evaluator.py VIRTUAL_imagenet256_labeled.npz admnet_guided_upsampled_imagenet256.npz
+...
+计算参考批次激活...
+计算/读取参考批次统计信息...
+计算样本批次激活...
+计算/读取样本批次统计信息...
+计算评估...
+Inception Score: 215.8370361328125
+FID: 3.9425574129223264
+sFID: 6.140433703346162
+Precision: 0.8265
+Recall: 0.5309
+
+这些指标将帮助您评估不同生成模型的性能，以便进行比较和分析。
+
+
+
 # Evaluations
 
 To compare different generative models, we use FID, sFID, Precision, Recall, and Inception Score. These metrics can all be calculated using batches of samples, which we store in `.npz` (numpy) files.

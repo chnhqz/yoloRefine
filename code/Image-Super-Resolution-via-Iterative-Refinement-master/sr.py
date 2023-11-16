@@ -14,23 +14,43 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-c', '--config', type=str, default='config/sr_sr3_16_128.json',
                         help='JSON file for configuration')
+    # --config：这是一个用于指定 JSON 配置文件的命令行选项。默认情况下，它的值是 config/sr_sr3_16_128.json，
+    # 但您可以通过命令行参数来指定不同的配置文件。这个配置文件通常包含程序运行时所需的设置和参数。
     parser.add_argument('-p', '--phase', type=str, choices=['train', 'val'],
                         help='Run either train(training) or val(generation)', default='train')
+    # --phase：这个选项用于指定程序的运行阶段，可以选择 train（训练）或 val（生成/验证）。
+    # 默认值是 train，但您可以通过命令行参数来选择其他阶段。
     parser.add_argument('-gpu', '--gpu_ids', type=str, default=None)
+    # --gpu_ids：这个选项用于指定要在哪些 GPU 设备上运行程序。它的值是一个字符串，
+    # 通常包含一个或多个 GPU 的 ID，可以是单个 ID，也可以是多个 ID以逗号分隔。如果不指定，程序将在默认的 GPU 上运行。
     parser.add_argument('-debug', '-d', action='store_true')
+    # --debug：这是一个布尔选项，如果指定了这个选项，程序将进入调试模式，通常会输出更多的调试信息以帮助排查问题。
     parser.add_argument('-enable_wandb', action='store_true')
+    # --enable_wandb：这也是一个布尔选项，如果指定了这个选项，程序将启用 Weights and Biases，一个用于实验追踪和可视化的工具。
     parser.add_argument('-log_wandb_ckpt', action='store_true')
+    # --log_wandb_ckpt：这是另一个布尔选项，如果指定了这个选项，程序将记录模型检查点到
+    # Weights and Biases，以便可以随时查看和恢复模型的状态。
     parser.add_argument('-log_eval', action='store_true')
+    # --log_eval：最后一个布尔选项，如果指定了这个选项，程序将记录评估结果，用于在训练后分析模型性能。
 
     # parse configs
     args = parser.parse_args()
+    # 首先，通过 parser.parse_args() 解析了之前定义的命令行参数，将用户在命令行中输入的参数值存储在 args 变量中。
     opt = Logger.parse(args)
+    # 然后，通过 Logger.parse(args) 将 args 转换为一个配置字典 opt。这个字典通常包含了程序的配置信息，
+    # 包括用户在命令行中指定的参数值，以及默认的配置值。这个配置字典通常用于指导程序的行为。
     # Convert to NoneDict, which return None for missing key.
     opt = Logger.dict_to_nonedict(opt)
+    # 最后，通过 Logger.dict_to_nonedict(opt) 将配置字典 opt 转换为一个新的字典 opt，
+    # 其中所有缺失的键（key）都被设置为 None。这是为了处理配置字典中可能缺少的键，以避免后续代码中的错误。
 
     # logging
     torch.backends.cudnn.enabled = True
+    # 启用了 PyTorch 对 cuDNN 库的支持。cuDNN（CUDA Deep Neural Network library）是 NVIDIA 提供的深度学习库，
+    # 它可以提高深度神经网络在 GPU 上的计算性能。启用 cuDNN 支持可以让 PyTorch 在 GPU 上更有效地运行深度学习模型，加速训练和推理过程。
     torch.backends.cudnn.benchmark = True
+    # 启用了 cuDNN 的性能优化模式。当这个选项设置为 True 时，PyTorch 会在启动时自动找到最适合当前硬件的 cuDNN 配置，
+    # 并进行一些性能测试，以便在后续计算中选择最佳的 cuDNN 算法。这可以显著提高深度学习模型的计算速度，尤其是在大型模型和大规模数据上。
 
     Logger.setup_logger(None, opt['path']['log'],
                         'train', level=logging.INFO, screen=True)
@@ -51,6 +71,7 @@ if __name__ == "__main__":
         wandb_logger = None
 
     # dataset
+    # 加载训练数据集 或者加载验证数据集
     for phase, dataset_opt in opt['datasets'].items():
         if phase == 'train' and args.phase != 'val':
             train_set = Data.create_dataset(dataset_opt, phase)
